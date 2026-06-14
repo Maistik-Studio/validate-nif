@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## ...master
+
+
+### 🚀 Enhancements
+
+- ⚠️  Rewrite as isomorphic TypeScript package under @maistik scope ([eed3984](https://github.com/Maistik-Studio/validate-nif/commit/eed3984))
+
+### 🩹 Fixes
+
+- **ci:** Robust npm auth + working toolchain on latest majors ([c781550](https://github.com/Maistik-Studio/validate-nif/commit/c781550))
+- **ci:** Test only on Node 22/24 (pnpm 11 requires Node >=22.13) ([49db44e](https://github.com/Maistik-Studio/validate-nif/commit/49db44e))
+- **ci:** Write npm token to the config file npm actually reads ([453d9b0](https://github.com/Maistik-Studio/validate-nif/commit/453d9b0))
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Rewrite as isomorphic TypeScript package under @maistik scope ([eed3984](https://github.com/Maistik-Studio/validate-nif/commit/eed3984))
+
+### ❤️ Contributors
+
+- Marcos Sanz Latorre ([@marsanla](https://github.com/marsanla))
+
 ## v2.0.0
 
 Full rewrite and republish under the `@maistik` scope.

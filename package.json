@@ -1,6 +1,6 @@
 {
   "name": "@maistik/validate-nif",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Zero-dependency, isomorphic validator for Spanish fiscal identifiers (DNI/NIF, NIE and CIF)",
   "type": "module",
   "private": false,
