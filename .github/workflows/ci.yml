@@ -27,7 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20, 22, 24]
+        # pnpm 11 requires Node >= 22.13, so CI runs on 22/24. The published
+        # package itself is pure ES2021 and supports Node >= 18 (see engines).
+        node-version: [22, 24]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
