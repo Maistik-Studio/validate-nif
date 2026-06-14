@@ -1,0 +1,211 @@
+name: CI / Release / Publish
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'patch'
+        type: choice
+        options: [patch, minor, major, prerelease]
+
+permissions:
+  contents: write # for checkout/push/tag
+  id-token: write # for npm provenance / signing
+
+env:
+  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+jobs:
+  test:
+    name: Test matrix
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22, 24]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        if: matrix.node-version == 22
+        run: pnpm lint
+
+      - name: Typecheck
+        if: matrix.node-version == 22
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test with coverage
+        run: pnpm test:coverage
+
+      - name: Smoke-test the published bundles
+        run: node examples/index.mjs
+
+      - name: Upload coverage
+        if: always() && matrix.node-version == 22
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 30
+
+  release:
+    name: Release & Publish
+    needs: test
+    runs-on: ubuntu-latest
+
+    # Only on the default branch or a manual dispatch.
+    if: >
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/master' ||
+      github.event_name == 'workflow_dispatch'
+
+    environment:
+      name: prod
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+          always-auth: true
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint, typecheck & test
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm test:coverage
+
+      - name: Build
+        run: pnpm build
+
+      - name: Determine release type
+        id: determine
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "type=${{ github.event.inputs.release_type }}" >> "$GITHUB_OUTPUT"
+          else
+            BODY=$(git log -1 --pretty=%B)
+            if echo "$BODY" | grep -qE "BREAKING CHANGE|!:"; then
+              echo "type=major" >> "$GITHUB_OUTPUT"
+            elif echo "$BODY" | grep -qE "^feat"; then
+              echo "type=minor" >> "$GITHUB_OUTPUT"
+            else
+              echo "type=patch" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Bump version (no tag)
+        id: bump
+        run: |
+          NEW=$(npm version "${{ steps.determine.outputs.type }}" --no-git-tag-version)
+          echo "new_version=$NEW" >> "$GITHUB_OUTPUT"
+          echo "version_number=${NEW#v}" >> "$GITHUB_OUTPUT"
+
+      # Only write the changelog file here. `--release` would also bump and
+      # commit/tag, double-bumping on top of the explicit `npm version` step and
+      # desyncing the published version from the tag. Versioning is owned solely
+      # by the bump step; committing/tagging happens below.
+      - name: Update changelog
+        run: pnpm exec changelogen --output CHANGELOG.md
+
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+
+      # Publish to npm FIRST: it is the source of truth and the step most likely
+      # to fail (auth/network). Tag and push only after a successful publish, so
+      # git and npm stay in sync. An already-published version is treated as
+      # success so re-runs are idempotent.
+      - name: Publish to npm (latest)
+        run: |
+          VER="${{ steps.bump.outputs.version_number }}"
+          if pnpm publish --access public --no-git-checks; then
+            echo "Published @maistik/validate-nif@$VER"
+          elif [ "$(npm view "@maistik/validate-nif@$VER" version 2>/dev/null)" = "$VER" ]; then
+            echo "Version $VER already on npm — treating as success."
+          else
+            echo "::error::npm publish failed for $VER (check NPM_TOKEN validity/permissions)"
+            exit 1
+          fi
+
+      - name: Commit, tag & push release
+        run: |
+          VER="${{ steps.bump.outputs.version_number }}"
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore(release): v$VER [skip ci]" || echo "Nothing to commit"
+          git push origin "HEAD:$BRANCH"
+          if git rev-parse "v$VER" >/dev/null 2>&1; then
+            echo "Tag v$VER already exists locally — skipping creation."
+          else
+            git tag -a "v$VER" -m "Release v$VER"
+          fi
+          git push origin "refs/tags/v$VER" || echo "Tag v$VER already on remote."
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VER="${{ steps.bump.outputs.version_number }}"
+          if gh release view "v$VER" >/dev/null 2>&1; then
+            echo "Release v$VER already exists — skipping."
+          else
+            gh release create "v$VER" \
+              --title "Release v$VER" \
+              --notes "## Changes
+          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md).
+
+          ## Installation
+          \`\`\`bash
+          npm install @maistik/validate-nif@$VER
+          \`\`\`"
+          fi
+
+      - name: Release summary
+        run: |
+          echo "## 🚀 Released v${{ steps.bump.outputs.version_number }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Type**: ${{ steps.determine.outputs.type }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **npm**: ✅ latest" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **GitHub Release**: ✅ created" >> "$GITHUB_STEP_SUMMARY"

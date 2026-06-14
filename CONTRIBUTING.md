@@ -1,22 +1,42 @@
-# Reporting Issues and Asking Questions
+# Contributing
 
-Before opening an issue, please search the (issue tracker)[https://github.com/WillowiDev/validate-nif/issues] to make sure your issue hasn’t already been reported.
+Thanks for your interest in improving `@maistik/validate-nif`!
 
-# Sending a Pull Request
+## Reporting issues
 
-For non-trivial changes, please open an issue with a proposal for a new feature or refactoring before starting on the work. We don’t want you to waste your efforts on a pull request that we won’t want to accept.
+Before opening an issue, please search the
+[issue tracker](https://github.com/Maistik-Studio/validate-nif/issues) to make
+sure it hasn't already been reported. When filing a bug, include the input value
+you validated and the result you expected.
 
-On the other hand, sometimes the best way to start a conversation is to send a pull request. Use your best judgement!
+## Development setup
 
-In general, the contribution workflow looks like this:
+This project uses [pnpm](https://pnpm.io) and Node.js >= 18.
 
-- Open a new issue in the (issue tracker)[https://github.com/WillowiDev/validate-nif/issues]
-- Fork the repo.
-- Create a new feature branch based off the master branch.
-- Make sure all tests pass and there are no linting errors.
-- Submit a pull request, referencing any issues it addresses.
-- Please try to keep your pull request focused in scope and avoid including unrelated commits.
+```bash
+pnpm install        # install dependencies
+pnpm test           # run the test suite
+pnpm test:coverage  # run tests with 100% coverage enforcement
+pnpm lint           # lint the source
+pnpm typecheck      # type-check without emitting
+pnpm build          # build the dual ESM/CJS bundle into dist/
+```
 
-After you have submitted your pull request, we’ll try to get back to you as soon as possible. We may suggest some changes or improvements.
+## Sending a pull request
+
+For non-trivial changes, open an issue first so we can agree on the approach
+before you invest time in the work.
+
+The contribution workflow:
+
+1. Fork the repo and create a feature branch off `master`.
+2. Make your change. New behaviour must keep **100% test coverage** — the
+   `test:coverage` script enforces this.
+3. Make sure `pnpm lint`, `pnpm typecheck` and `pnpm test:coverage` all pass.
+4. Use [Conventional Commits](https://www.conventionalcommits.org) for your
+   commit messages (`feat:`, `fix:`, `docs:`, …). The release workflow derives
+   the semver bump from them.
+5. Open a pull request, referencing any issues it addresses, and keep it
+   focused in scope.
 
 Thank you for contributing!
