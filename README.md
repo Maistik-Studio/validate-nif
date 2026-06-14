@@ -4,7 +4,7 @@ Validate spanish NIF, NIE and CIF
 
 # Installation
 ```js
-import { validateNif } from '@willowi/validate-nif';
+import { validateNif } from '@maistik/validate-nif';
 
 validateNif('<nif_number>');
 ```
