@@ -153,7 +153,10 @@ jobs:
 
       - name: Configure npm auth
         run: |
-          cat > ~/.npmrc <<EOF
+          # setup-node (registry-url) points npm at a temp config via
+          # NPM_CONFIG_USERCONFIG, so write the token there — not ~/.npmrc.
+          NPMRC="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
+          cat > "$NPMRC" <<EOF
           //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
           @maistik:registry=https://registry.npmjs.org/
           always-auth=true
