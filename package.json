@@ -59,14 +59,15 @@
   },
   "homepage": "https://github.com/Maistik-Studio/validate-nif#readme",
   "devDependencies": {
-    "@eslint/js": "^9.18.0",
-    "@vitest/coverage-v8": "^2.1.8",
-    "changelogen": "^0.5.7",
-    "eslint": "^9.18.0",
-    "typescript": "^5.7.3",
-    "typescript-eslint": "^8.20.0",
-    "unbuild": "^2.0.0",
-    "vitest": "^2.1.8"
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.1.8",
+    "changelogen": "^0.6.2",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.0",
+    "unbuild": "^3.6.1",
+    "vite": "^7.3.5",
+    "vitest": "^4.1.8"
   },
-  "packageManager": "pnpm@9.15.9"
+  "packageManager": "pnpm@11.6.0"
 }

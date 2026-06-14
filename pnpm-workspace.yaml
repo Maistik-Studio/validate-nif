@@ -1,0 +1,12 @@
+allowBuilds:
+  esbuild: true
+# Allow esbuild (used by vitest, vite and unbuild) to run its postinstall
+# script, which fetches the platform-native binary. Required for build and tests
+# to work locally and in CI (pnpm blocks build scripts by default since v10).
+onlyBuiltDependencies:
+  - esbuild
+# Force the patched esbuild across the dev toolchain (GHSA-67mh-4wv8-2f99 — a
+# dev-server-only advisory). esbuild's API is stable across 0.27→0.28, so this
+# is safe for vite/unbuild which depend on ^0.27.0.
+overrides:
+  esbuild: '>=0.28.1'

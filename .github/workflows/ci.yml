@@ -37,7 +37,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9.15.9
+          version: 11.6.0
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -97,7 +97,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9.15.9
+          version: 11.6.0
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -150,7 +150,26 @@ jobs:
         run: pnpm exec changelogen --output CHANGELOG.md
 
       - name: Configure npm auth
-        run: echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+        run: |
+          cat > ~/.npmrc <<EOF
+          //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
+          @maistik:registry=https://registry.npmjs.org/
+          always-auth=true
+          EOF
+
+      # Fail fast with an actionable message instead of a cryptic 404 at publish.
+      - name: Verify npm authentication
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "::error::The NPM_TOKEN secret is empty or not set for this repository."
+            echo "Add an npm *automation* token as the NPM_TOKEN secret (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          if ! WHO=$(npm whoami --registry https://registry.npmjs.org/ 2>/dev/null); then
+            echo "::error::npm authentication failed — NPM_TOKEN is invalid, expired or read-only."
+            exit 1
+          fi
+          echo "Authenticated to npm as: $WHO"
 
       # Publish to npm FIRST: it is the source of truth and the step most likely
       # to fail (auth/network). Tag and push only after a successful publish, so
@@ -159,12 +178,15 @@ jobs:
       - name: Publish to npm (latest)
         run: |
           VER="${{ steps.bump.outputs.version_number }}"
-          if pnpm publish --access public --no-git-checks; then
+          if npm publish --access public; then
             echo "Published @maistik/validate-nif@$VER"
           elif [ "$(npm view "@maistik/validate-nif@$VER" version 2>/dev/null)" = "$VER" ]; then
             echo "Version $VER already on npm — treating as success."
           else
-            echo "::error::npm publish failed for $VER (check NPM_TOKEN validity/permissions)"
+            echo "::error::npm publish failed for $VER."
+            echo "A 404 on a scoped publish almost always means the NPM_TOKEN lacks publish rights for @maistik/validate-nif."
+            echo "Fix: use an automation token for the @maistik org, OR (for a granular token) grant it read/write access to this package — granular tokens cannot create a brand-new package unless scoped to the whole org/scope."
+            echo "For the very first publish you may need to run 'npm publish --access public' once locally as an org member."
             exit 1
           fi
 
